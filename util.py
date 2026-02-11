@@ -94,3 +94,23 @@ def process_set_batch(folder_path, set_name, image_map, wear_map, output_dir):
         return True
     
     return False
+
+
+def timeseries(dataset):
+    """
+    Plots the 5 sensor channels (accel, acoustic, force_x, force_y, force_z)
+    from the provided DataFrame as vertically stacked subplots.
+    """
+    sensors = ['accel', 'acoustic', 'force_x', 'force_y', 'force_z']
+    fig, axes = plt.subplots(len(sensors), 1, figsize=(12, 10), sharex=True)
+    
+    for ax, sensor in zip(axes, sensors):
+        # Plot data; using .values avoids potential index issues if not sorted
+        ax.plot(dataset[sensor].values) 
+        ax.set_title(f"Sensor: {sensor}")
+        ax.set_ylabel('Value')
+        ax.grid(True)
+        
+    axes[-1].set_xlabel('Time')
+    plt.tight_layout()
+    plt.show()
