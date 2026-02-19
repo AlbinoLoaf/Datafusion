@@ -15,6 +15,7 @@ from imblearn.over_sampling import SMOTE
 from sklearn import svm
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from skimage.feature import hog, local_binary_pattern
 
 
 def load_sensor_file(file_path, set_name, image_map, wear_map):
@@ -128,52 +129,52 @@ def compute_LocalBinaryPattern(image):
         
     Returns:
         numpy.ndarray: LBP-transformed image of shape (height, width) with uint8 values
+    """    
+    # Cropping the image to zoom in the point of the drill
+    cropped = image.crop((2000, 500, 5496, 3672))
+    # Rezising the image to speed up computation and reduce the size of output features
+    resized = cropped.resize((512, 512))
+    # Convert to grayscale
+    gray_image = ImageOps.grayscale(resized)
+    # Convert to numpy array
+    gray_array = np.array(gray_image)
+    # Compute LBP
+    radius = 1
+    n_points = 8 * radius
+    lbp = local_binary_pattern(gray_array, n_points, radius, method='uniform')
+    return lbp
+
+
+def get_HOG(image):
+    """
+    Compute Histogram of Oriented Gradients (HOG) for a given image.
+    
+    HOG captures edge and gradient structure by computing gradients, 
+    creating histograms of gradient orientations, and normalizing them.
+    
+    Args:
+        image: A PIL Image object (expected size: 5496x3672)
+
+    Return:
+        fd: vector of size 7200 
     """
 
-    def get_value(image, center_value, x_, y_):
-    	"""
-		Returns a binary value for each neighbour of the current "center" pixel
-    	"""
+    if image.size != (5496, 3672):
+        raise ValueError(f"Expected image size (5496, 3672), got {image.size}")
+    
+    else:
+        # Cropping the image to zoom in the point of the drill
+        cropped = image.crop((2000, 500, 5496, 3672))
+        # Rezising the image to speed up computation and reduce the size of output features
+        resized = cropped.resize((512, 512))
 
-        try:
-            if image[x_, y_] >= center_value:
-                return 1
+        fd = hog(
+            resized,
+            orientations=8,
+            pixels_per_cell=(32, 32),
+            cells_per_block=(2, 2),
+            channel_axis=-1,
+            feature_vector=True
+        )
 
-            else:
-                return 0
-
-        except:
-            return 0
-
-
-    def lpg(image, x, y):
-    	"""
-    	Compute LBP value for a single pixel by comparing with 8 neighbors.
-    	"""
-
-        values = []
-        for i in [-1, 0, 1]:
-            for j in [-1, 0, 1]:
-                if not (i == 0 and j == 0):
-                    v = get_value(image, image[x][y], x+i, y+j)
-                    values.append(v)
-
-        # Convert binary to decimal
-        power = [1,2,4,8,16,32,64,128]
-        value = 0
-        for k in range(len(values)):
-            value += values[k] * power[k]
-
-        return value
-
-
-    width, height  = image.size
-    im = ImageOps.grayscale(image)
-    im = np.asarray(im)
-    img_lbp = np.zeros((height, width),np.uint8)
-
-    for x in range(height-1):
-        for y in range(width-1):
-            img_lbp[x, y] = lpg(im, x, y)
-            
-    return img_lbp
+    return fd
