@@ -178,3 +178,30 @@ def get_HOG(image):
         )
 
     return fd
+
+def process_set_images(set_path):
+    """
+    Loads the pickled DataFrame for a set, extracts unique image paths and wear values,
+    computes HOG features for each unique image, and returns a new DataFrame with these features.
+    """
+
+    set = pd.read_pickle(set_path)
+    
+    # Select unique image paths and their corresponding wear values, dropping any rows with missing data
+    unique_image_set = (
+        set
+        .drop_duplicates("image_path")
+        .loc[:, ["image_path", "wear"]]
+        .dropna()
+        .reset_index(drop=True)
+    )
+
+    hog_features = []
+    for image_path in unique_image_set["image_path"]:
+        with Image.open(image_path) as im:
+            hog_feature = get_HOG(im) 
+            hog_features.append(hog_feature)
+
+    unique_image_set['hog_features'] = hog_features
+
+    return unique_image_set
