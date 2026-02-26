@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import re
 from PIL import Image, ImageOps
+import pywt
 
 #ML bs 
 from sklearn.feature_extraction.text import CountVectorizer
@@ -141,7 +142,8 @@ def compute_LocalBinaryPattern(image):
     # Compute LBP
     radius = 1
     n_points = 8 * radius
-    lbp = local_binary_pattern(gray_array, n_points, radius, method='uniform')
+    print("default mode")
+    lbp = local_binary_pattern(gray_array, n_points, radius, method='default')
     return lbp
 
 
@@ -179,6 +181,7 @@ def get_HOG(image):
 
     return fd
 
+
 def process_set_images(set_path):
     """
     Loads the pickled DataFrame for a set, extracts unique image paths and wear values,
@@ -192,7 +195,7 @@ def process_set_images(set_path):
         set
         .drop_duplicates("image_path")
         .loc[:, ["image_path", "wear"]]
-        .dropna()
+        .dropna()   
         .reset_index(drop=True)
     )
 
@@ -205,3 +208,43 @@ def process_set_images(set_path):
     unique_image_set['hog_features'] = hog_features
 
     return unique_image_set
+
+
+def extract_wavelet_packet_features(signal, wavelet='db4', level=3):
+    """
+    Extract Wavelet Packet Transform features.
+    Provides finer frequency resolution than standard DWT.
+    Good for detailed frequency analysis of 50-second signals.
+    
+    Args:
+        signal: 1D numpy array
+        wavelet: Wavelet type
+        level: Decomposition level (3-4 for 50-second data)
+        
+    Returns:
+        numpy.ndarray: Wavelet packet energy features
+    """
+    if len(signal) < 2**level:
+        level = int(np.log2(len(signal))) - 1
+        if level < 1:
+            level = 1
+    
+    # Wavelet packet decomposition
+    wp = pywt.WaveletPacket(data=signal, wavelet=wavelet, maxlevel=level)
+    
+    # Get all nodes at the deepest level
+    packet_names = [node.path for node in wp.get_level(level, 'natural')]
+    
+    # Extract energy from each frequency band
+    energies = []
+    for packet_name in packet_names:
+        packet = wp[packet_name].data
+        energy = np.sum(packet**2)
+        energies.append(energy)
+    
+    # Normalize energies
+    energies = np.array(energies)
+    total_energy = np.sum(energies) + 1e-7
+    normalized_energies = energies / total_energy
+    
+    return normalized_energies
