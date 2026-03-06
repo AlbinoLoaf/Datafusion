@@ -1,21 +1,10 @@
+import torch
 import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import re
 from PIL import Image, ImageOps
 import pywt
-
-#ML bs 
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LinearRegression,LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score,accuracy_score,matthews_corrcoef
-from imblearn.over_sampling import SMOTE
-from sklearn import svm
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
 from skimage.feature import hog, local_binary_pattern
 
 
@@ -142,7 +131,7 @@ def compute_LocalBinaryPattern(image):
     # Compute LBP
     radius = 1
     n_points = 8 * radius
-    print("default mode")
+    #print("default mode")
     lbp = local_binary_pattern(gray_array, n_points, radius, method='default')
     return lbp
 
@@ -248,3 +237,71 @@ def extract_wavelet_packet_features(signal, wavelet='db4', level=3):
     normalized_energies = energies / total_energy
     
     return normalized_energies
+
+
+def train(model, loss_fn, train_loader, valid_loader, epochs, optimizer, train_losses, valid_losses, scheduler):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+    print(f"Using device: {device}")
+    
+    early_stopping_patience = 5
+    best_valid_loss = float('inf')
+    epochs_without_improvement = 0
+    best_model_weights = None
+
+    for epoch in range(1,epochs+1):
+        print(f'- Epoch {epoch}')
+        model.train()
+        batch_losses=[]
+
+        for _, data in enumerate(train_loader):
+            x, y = data
+
+            x = x.to(device, dtype=torch.float32)
+            y = y.to(device, dtype=torch.float32)
+            y = torch.reshape(y, (y.shape[0], 1))
+
+            pred = model(x)
+
+            loss = loss_fn(pred, y)
+
+            optimizer.zero_grad()
+            loss.backward()
+
+            batch_losses.append(loss.item())
+            optimizer.step()
+            
+        train_losses.append(np.mean(batch_losses))
+        print(f'-- Train-Loss : {train_losses[-1]}')
+
+        model.eval()
+        batch_losses=[]
+
+        for i, data in enumerate(valid_loader):
+            x, y = data
+            x = x.to(device, dtype=torch.float32)
+            y = y.to(device, dtype=torch.float32)
+            y = torch.reshape(y, (y.shape[0], 1))
+
+            pred = model(x)
+            mse = loss_fn(pred, y)
+            batch_losses.append(mse.item())
+
+        valid_losses.append(np.mean(batch_losses))
+        scheduler.step(valid_losses[-1])
+
+        if valid_losses[-1] < best_valid_loss:
+            best_valid_loss = valid_losses[-1]
+            epochs_without_improvement = 0
+            best_model_weights = copy.deepcopy(model.state_dict()) 
+        else:
+            epochs_without_improvement += 1
+
+        if epochs_without_improvement >= early_stopping_patience:
+            print(f"Early stopping triggered after {epoch} epochs.")
+            model.load_state_dict(best_model_weights)
+            break
+
+        print(f'-- Valid Loss : {valid_losses[-1]}\n')
+        
+    return valid_losses
