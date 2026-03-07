@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageOps
 import pywt
 from skimage.feature import hog, local_binary_pattern
-import copy
+
 
 def load_sensor_file(file_path, set_name, image_map, wear_map):
     """
@@ -175,7 +175,7 @@ def get_HOG(image):
 def process_set_images(set_path):
     """
     Loads the pickled DataFrame for a set, extracts unique image paths and wear values,
-    computes HOG features for each unique image, and returns a new DataFrame with these features.
+    computes HOG and LBP features for each unique image, and returns a new DataFrame with these features.
     """
 
     set = pd.read_pickle(set_path)
@@ -190,12 +190,17 @@ def process_set_images(set_path):
     )
 
     hog_features = []
+    lbp_features = []
     for image_path in unique_image_set["image_path"]:
         with Image.open(image_path) as im:
             hog_feature = get_HOG(im) 
             hog_features.append(hog_feature)
 
+            lbp_feature = compute_LocalBinaryPattern(im)
+            lbp_features.append(lbp_feature)
+
     unique_image_set['hog_features'] = hog_features
+    unique_image_set['lbp_features'] = lbp_features
 
     return unique_image_set
 
@@ -204,12 +209,11 @@ def extract_wavelet_packet_features(signal, wavelet='db4', level=3):
     """
     Extract Wavelet Packet Transform features.
     Provides finer frequency resolution than standard DWT.
-    Good for detailed frequency analysis of 50-second signals.
     
     Args:
         signal: 1D numpy array
         wavelet: Wavelet type
-        level: Decomposition level (3-4 for 50-second data)
+        level: Decomposition level
         
     Returns:
         numpy.ndarray: Wavelet packet energy features
@@ -219,13 +223,11 @@ def extract_wavelet_packet_features(signal, wavelet='db4', level=3):
         if level < 1:
             level = 1
     
-    # Wavelet packet decomposition
     wp = pywt.WaveletPacket(data=signal, wavelet=wavelet, maxlevel=level)
     
-    # Get all nodes at the deepest level
     packet_names = [node.path for node in wp.get_level(level, 'natural')]
     
-    # Extract energy from each frequency band
+    # Extract energy
     energies = []
     for packet_name in packet_names:
         packet = wp[packet_name].data
