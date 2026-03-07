@@ -253,7 +253,6 @@ def train(model, loss_fn, train_loader, valid_loader, epochs, optimizer, train_l
         print(f'- Epoch {epoch}')
         model.train()
         batch_losses=[]
-
         for _, data in enumerate(train_loader):
             x, y = data
 
