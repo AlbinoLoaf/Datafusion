@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageOps
 import pywt
 from skimage.feature import hog, local_binary_pattern
-
+import copy
 
 def load_sensor_file(file_path, set_name, image_map, wear_map):
     """
@@ -122,18 +122,19 @@ def compute_LocalBinaryPattern(image):
     """    
     # Cropping the image to zoom in the point of the drill
     cropped = image.crop((2000, 500, 5496, 3672))
-    # Rezising the image to speed up computation and reduce the size of output features
+
     resized = cropped.resize((512, 512))
-    # Convert to grayscale
     gray_image = ImageOps.grayscale(resized)
-    # Convert to numpy array
     gray_array = np.array(gray_image)
-    # Compute LBP
+
     radius = 1
     n_points = 8 * radius
-    #print("default mode")
-    lbp = local_binary_pattern(gray_array, n_points, radius, method='default')
-    return lbp
+
+    lbp = local_binary_pattern(gray_array, n_points, radius, method='uniform')
+    hist, _ = np.histogram(lbp.ravel(), bins=n_points + 2, range=(0, n_points + 2))
+    features = hist.astype(float) / (hist.sum() + 1e-7)
+
+    return features
 
 
 def get_HOG(image):
@@ -253,6 +254,7 @@ def train(model, loss_fn, train_loader, valid_loader, epochs, optimizer, train_l
         print(f'- Epoch {epoch}')
         model.train()
         batch_losses=[]
+
         for _, data in enumerate(train_loader):
             x, y = data
 
