@@ -308,3 +308,46 @@ def train(model, loss_fn, train_loader, valid_loader, epochs, optimizer, train_l
         print(f'-- Valid Loss : {valid_losses[-1]}\n')
         
     return valid_losses
+
+
+def variance_proportion_plot(pc_values, max=1):
+    """
+    Plots the cumulative and individual variance proportions for principal components.
+
+    Args:
+        pc_values: 1D array of eigenvalues representing the variance explained by each principal component.
+        max: Maximum cumulative variance proportion to display (between 0 and 1).
+
+    Returns:
+        None. Displays a plot of cumulative and individual variance proportions.
+    """
+    # Calculate total variance, cumulative variance, and individual variance proportions
+
+    total = np.sum(pc_values)
+    cumulative = np.cumsum(pc_values)
+    proportion = cumulative / total
+    # Individual variance proportion for each component
+    each = pc_values / total
+
+    # Find the minimum number of components required to reach the desired cumulative variance
+    max_idx = np.argwhere(proportion >= max - 1e-7)[0, 0]
+    
+    # Set the x-axis values (number of components) up to the determined threshold
+    x = np.arange(1, max_idx + 1, 1)
+
+    # Create the plot
+    plt.figure()
+    plt.title("Principal Components")
+    plt.xlabel('Number of components')
+    plt.ylabel('Variance (fraction of total)')
+    
+    # Plot cumulative variance proportion and individual variance proportion
+    plt.plot(x, proportion[:max_idx], 'r-+', label='Cumulative variance')
+    plt.plot(x, each[:max_idx], 'b-+', label='Variance proportion')
+
+    # Set the y-axis limit and add a legend
+    plt.ylim(0, 1)
+    plt.legend(['Cumulative variance', 'Variance proportion'])
+    
+    # Display the plot
+    plt.show()
