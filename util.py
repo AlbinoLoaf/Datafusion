@@ -1,3 +1,5 @@
+from sklearn.discriminant_analysis import StandardScaler
+
 import torch
 import os
 import numpy as np
@@ -194,9 +196,11 @@ def process_set_images(set_path):
     for image_path in unique_image_set["image_path"]:
         with Image.open(image_path) as im:
             hog_feature = get_HOG(im) 
+            hog_feature = StandardScaler().fit_transform(hog_feature.reshape(-1, 1)).flatten() # Normalize between -1 and 1
             hog_features.append(hog_feature)
 
             lbp_feature = compute_LocalBinaryPattern(im)
+            lbp_feature = StandardScaler().fit_transform(lbp_feature.reshape(-1, 1)).flatten()
             lbp_features.append(lbp_feature)
 
     unique_image_set['hog_features'] = hog_features
@@ -218,10 +222,6 @@ def extract_wavelet_packet_features(signal, wavelet='db4', level=3):
     Returns:
         numpy.ndarray: Wavelet packet energy features
     """
-    if len(signal) < 2**level:
-        level = int(np.log2(len(signal))) - 1
-        if level < 1:
-            level = 1
     
     wp = pywt.WaveletPacket(data=signal, wavelet=wavelet, maxlevel=level)
     
