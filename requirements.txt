@@ -1,0 +1,11 @@
+numpy==2.2.6
+pandas
+matplotlib==3.10.5
+scikit-learn==1.7.1
+scikit-image==0.26
+PyWavelets==1.9.0
+pillow
+torch
+torchvision
+notebook
+ipywidgets
